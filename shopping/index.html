@@ -269,11 +269,13 @@ function sendWeek(){const kept=live().filter(i=>i.keep).length,ex=S.added.filter
 function restoreReset(){if(!isOwner())return;if(confirm("Restore the list as it was before the last Reset week?\n\nKeep/Lose choices, added items, meals and the week status come back. Anything added since the reset is kept."))act({action:"restoreLastReset"},"Restoring list from before reset…");}
 function reopenWeek(){if(confirm("Reopen the list so the family can edit again?"))act({action:"reopenWeek"},"List reopened");}
 // ---- Duplicate protection (client-side only)
-const DUP_STOP=new Set("gluten free glutenfree gf freefrom from the a of and with in pack packs x tesco asda sainsburys morrisons iceland aldi lidl coop waitrose ocado ms schar genius warburtons heinz kelloggs nestle mcvities essential everyday value finest extra special organic fresh large small medium".split(" "));
+const DUP_STOP=new Set("gluten free glutenfree gf freefrom from the a of and with in pack packs x tesco asda sainsburys morrisons iceland aldi lidl coop waitrose ocado ms schar genius warburtons heinz kelloggs nestle mcvities essential everyday value finest extra special organic fresh large small medium breast breasts fillet fillets thigh thighs diced mini boneless skinless frozen whole mixed plain chopped sliced grated mature granules granule pieces chunks".split(" "));
 function dupKey(n){let t=String(n||"").toLowerCase().replace(/&/g," and ").replace(/['’]/g,"")
   .replace(/\b\d+(\.\d+)?\s*(x|×|kg|g|gr|grams?|ml|l|ltr|litres?|cl|pk|pack|packs|pcs|pieces?|oz|lb)?\b/g," ").replace(/×/g," ").replace(/[^a-z ]+/g," ");
-  return [...new Set(t.split(/\s+/).filter(w=>w&&!DUP_STOP.has(w)).map(w=>w.length>4&&w.endsWith("ies")?w.slice(0,-3)+"y":w.length>4&&/(ches|shes|oes)$/.test(w)?w.slice(0,-2):w.length>3&&w.endsWith("s")&&!w.endsWith("ss")?w.slice(0,-1):w))].sort();}
-function dupSim(a,b){if(!a.length||!b.length)return false;const B=new Set(b),i=a.filter(w=>B.has(w)).length;return i/(new Set([...a,...b]).size)>=0.75;}
+  const o=[...new Set(t.split(/\s+/).filter(w=>w&&!DUP_STOP.has(w)).map(w=>w.length>4&&w.endsWith("ies")?w.slice(0,-3)+"y":w.length>4&&/(ches|shes|oes)$/.test(w)?w.slice(0,-2):w.length>3&&w.endsWith("s")&&!w.endsWith("ss")?w.slice(0,-1):w))];const k=[...o].sort();k.ord=o;return k;}
+function dupSim(a,b){if(!a.length||!b.length)return false;const A=a.ord||a,Bo=b.ord||b,B=new Set(b),i=a.filter(w=>B.has(w)).length;
+  if(i/(new Set([...a,...b]).size)>=0.75)return true;
+  const [sh,lg]=a.length<=b.length?[A,Bo]:[Bo,A];return sh.every(w=>lg.includes(w))&&sh[sh.length-1]===lg[lg.length-1];}
 function activeRows(){const o=[];(S.items||[]).forEach(i=>{if(i.active&&i.keep)o.push({id:i.id,name:i.name,barcode:""});});
   (S.added||[]).forEach(a=>{if(!a.meal||a.keep!==false)o.push({id:a.id,name:a.name,barcode:a.barcode||""});});return o;}
 function findDup(name,barcode){const k=dupKey(name),bc=String(barcode||"").replace(/\D/g,"");
