@@ -25,9 +25,9 @@ h2{font-size:15px;margin:20px 4px 8px;display:flex;align-items:center;gap:8px}h2
 .new{background:var(--coral)}
 .who{display:block;color:var(--soft);font-size:12px}
 .kl{display:flex;background:#F4ECE5;border-radius:999px;padding:3px}
-.kl button{border:0;background:none;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--soft)}
+.kl button{border:0;background:none;min-height:44px;min-width:60px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:700;color:var(--soft);cursor:pointer}
 .kl .k.on{background:var(--green);color:#fff}.kl .l.on{background:#C9483B;color:#fff}
-.rm{border:0;background:none;color:#B9A9A0;font-size:18px;padding:4px 2px 4px 6px}
+.rm{border:0;background:none;color:#B9A9A0;font-size:20px;min-width:44px;min-height:44px;padding:0}
 .restore{border:0;background:#F4ECE5;color:var(--ink);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12px}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
 .btn{border:0;border-radius:14px;padding:13px 16px;font-weight:700;font-size:15px;background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.06);flex:1}
@@ -48,6 +48,8 @@ input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;display:none;z-index:10;white-space:normal;max-width:90vw}
 .toast button{border:0;background:none;color:var(--coral2);font-weight:700;margin-left:10px;font-size:14px}
 .hidden{display:none}
+button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn,.tab,.restore,.toast button{min-height:44px}
 .fab2{right:auto;left:20px;background:var(--ink);box-shadow:0 8px 22px rgba(0,0,0,.3)}
 #scanVideo{width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover}
 .prod{display:flex;gap:12px;align-items:center;margin:6px 0 4px}.prod img{width:64px;height:64px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
@@ -181,31 +183,56 @@ const demo = {ok:true,items:[
     {id:"c8",name:"Long grain rice 1kg",qty:"1",category:"Cupboard",gf:true,meal:"m1",keep:true}],
   meals:[{id:"m1",name:"Chilli con carne",servings:"4",by:"Wayne",note:"with rice",status:"Ingredients added"},
     {id:"m2",name:"Fish pie",servings:"",by:"Sam",note:"",status:"Requested"}]};
+// ---- Local reducer: same logic for demo and for instant (optimistic) updates
+function applyLocal(st,b){const f=id=>st.items.find(x=>x.id===id), g=id=>st.added.find(x=>x.id===id);
+  st.meals=st.meals||[];
+  if(b.action==="setKeep"){const x=f(b.id)||g(b.id);if(x)x.keep=b.keep;}
+  if(b.action==="removeItem"&&f(b.id))f(b.id).active=false; if(b.action==="restoreItem"&&f(b.id))f(b.id).active=true;
+  if(b.action==="remove")st.added=st.added.filter(a=>a.id!==b.id);
+  if(b.action==="restoreAdded"&&!g(b.item.id))st.added.push({keep:true,...b.item});
+  if(b.action==="removeMeal"){st.meals=st.meals.filter(m=>m.id!==b.id);st.added=st.added.filter(a=>a.meal!==b.id);}
+  if(b.action==="restoreMeal"&&!st.meals.find(m=>m.id===b.meal.id)){st.meals.push(b.meal);st.added.push(...(b.ingredients||[]));}
+  if(b.action==="reset"){st.added=[];st.meals=[];st.items.forEach(i=>i.keep=true);}
+  return st;}
 async function api(b){
-  if (DEMO){ const f=id=>demo.items.find(x=>x.id===id);
-    if(b.action==="setKeep"&&f(b.id))f(b.id).keep=b.keep; if(b.action==="removeItem")f(b.id).active=false; if(b.action==="restoreItem")f(b.id).active=true;
-    if(b.action==="add")demo.added.push({id:String(Date.now()),name:b.name,qty:b.qty,category:b.category||"Other",gf:b.gf,by:b.by,barcode:b.barcode,brand:b.brand,gfCheck:b.gfCheck,keep:true});
-    if(b.action==="remove")demo.added=demo.added.filter(a=>a.id!==b.id); if(b.action==="restoreAdded")demo.added.push(b.item);
-    if(b.action==="setKeep"&&!f(b.id)){const a=demo.added.find(x=>x.id===b.id);if(a)a.keep=b.keep;}
-    if(b.action==="addMeal")demo.meals.push({id:String(Date.now()),name:b.name,servings:b.servings,by:b.by,note:b.note,status:"Requested"});
-    if(b.action==="removeMeal"){demo.meals=demo.meals.filter(m=>m.id!==b.id);demo.added=demo.added.filter(a=>a.meal!==b.id);}
-    if(b.action==="restoreMeal"){demo.meals.push(b.meal);demo.added.push(...b.ingredients);}
-    if(b.action==="reset"){demo.added=[];demo.meals=[];demo.items.forEach(i=>i.keep=true);}
-    return JSON.parse(JSON.stringify(demo)); }
+  if (DEMO){ applyLocal(demo,b); return JSON.parse(JSON.stringify(demo)); }
   const r = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...b,pin:pin(),by:b.by??me()})});
   return r.json();
 }
+// ---- Background save queue: serialised, setKeep coalesced per item (last tap wins)
+const Q=[]; let qBusy=false, qTimer=null, dirty=0;
+const uid=()=>Date.now().toString(36).slice(-5)+Math.random().toString(36).slice(2,5);
+function saveCache(){if(!DEMO)try{localStorage.setItem("fsl_cache",JSON.stringify(S));}catch(e){}}
+function enqueue(b){
+  if(b.action==="setKeep"){const i=Q.findIndex(q=>q.action==="setKeep"&&q.id===b.id);if(i>=0){Q[i]=b;}else Q.push(b);}
+  else Q.push(b);
+  dirty++; clearTimeout(qTimer); qTimer=setTimeout(flushQ,350);}
+async function flushQ(){if(qBusy)return;qBusy=true;let failed=false,last=null;
+  while(Q.length){const b=Q.shift();
+    try{const d=await api(b);if(!d.ok){failed=true;if(d.error==="bad_pin"){Q.length=0;show("pin");}}else last=d;}catch(e){failed=true;}}
+  qBusy=false;
+  if(failed){toast("Couldn't save a change. Refreshing…");refresh(true);}
+  else if(last&&!Q.length){dirty=0;S=last;saveCache();if(!openSheet())render();}}
+const openSheet=()=>!!document.querySelector(".sheet.show");
+// Instant: change locally, render, save in background
+function act(b,msg){
+  if(b.action==="add"){b={action:"restoreAdded",item:{id:uid(),name:b.name,qty:b.qty||"1",category:b.category||"Other",gf:!!b.gf,by:b.by??me(),barcode:b.barcode||"",brand:b.brand||"",image:b.image||"",gfCheck:b.gfCheck||"",meal:"",keep:true}};}
+  if(b.action==="addMeal"){b={action:"restoreMeal",meal:{id:uid(),name:b.name,servings:b.servings||"",by:b.by??me(),note:b.note||"",status:"Requested"},ingredients:[]};}
+  applyLocal(S,b);saveCache();render();if(msg)toast(msg);enqueue(b);}
+async function refresh(force){try{const d=await api({action:"get"});if(d.ok&&(force||(!Q.length&&!qBusy))){S=d;saveCache();render();}}catch(e){}}
 function toast(t,undo){const e=document.getElementById("toast");undoFn=undo||null;e.innerHTML=esc(t)+(undo?'<button onclick="doUndo()">Undo</button>':'');e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>{e.style.display="none";undoFn=null;},undo?6000:2200);}
 async function doUndo(){const f=undoFn;undoFn=null;document.getElementById("toast").style.display="none";if(f)await f();}
 function show(v){document.getElementById("pinView").classList.toggle("hidden",v!=="pin");document.getElementById("appView").classList.toggle("hidden",v!=="app");}
-async function login(){localStorage.setItem("fsl_pin",document.getElementById("pinIn").value.trim());localStorage.setItem("fsl_name",document.getElementById("nameIn").value.trim());await load();}
+async function login(){localStorage.setItem("fsl_pin",document.getElementById("pinIn").value.trim());localStorage.setItem("fsl_name",document.getElementById("nameIn").value.trim());localStorage.removeItem("fsl_cache");await load();}
 async function load(){
+  const c=!DEMO&&localStorage.getItem("fsl_cache");
+  if(c){try{S=JSON.parse(c);show("app");render();refresh();return;}catch(e){}}
   try{const d=await api({action:"get"});
     if(!d.ok){show("pin");document.getElementById("pinErr").textContent=d.error==="bad_pin"?"That PIN didn't work.":"Couldn't load: "+d.error;return;}
-    S=d;show("app");render();
+    S=d;saveCache();show("app");render();
   }catch(e){show("pin");document.getElementById("pinErr").textContent="Can't reach the list right now.";}
 }
-async function act(b,msg){const d=await api(b);if(d.ok){S=d;render();if(msg)toast(msg);}else toast("Something went wrong");}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!DEMO&&pin())refresh();});
 
 function render(){
   document.getElementById("hello").textContent = me() ? "Hi "+me()+" 👋 here's this week's list" : "This week's list";
