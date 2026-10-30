@@ -197,7 +197,8 @@ function applyLocal(st,b){const f=id=>st.items.find(x=>x.id===id), g=id=>st.adde
   if(b.action==="restoreAdded"&&!g(b.item.id))st.added.push({keep:true,...b.item});
   if(b.action==="removeMeal"){st.meals=st.meals.filter(m=>m.id!==b.id);st.added=st.added.filter(a=>a.meal!==b.id);}
   if(b.action==="restoreMeal"&&!st.meals.find(m=>m.id===b.meal.id)){st.meals.push(b.meal);st.added.push(...(b.ingredients||[]));}
-  if(b.action==="reset"){st.added=[];st.meals=[];st.items.forEach(i=>i.keep=true);st.week={status:"Open",at:""};}
+  if(b.action==="reset"){st._bak=JSON.parse(JSON.stringify({added:st.added,meals:st.meals,items:st.items,week:st.week}));st.added=[];st.meals=[];st.items.forEach(i=>i.keep=true);st.week={status:"Open",at:""};}
+  if(b.action==="restoreLastReset"&&st._bak){const k=st._bak;delete st._bak;const ids=new Set(st.added.map(a=>a.id)),mids=new Set(st.meals.map(m=>m.id));st.added.push(...k.added.filter(a=>!ids.has(a.id)));st.meals.push(...k.meals.filter(m=>!mids.has(m.id)));st.items=k.items;st.week=k.week;}
   if(b.action==="submitWeek")st.week={status:"Submitted",at:new Date().toISOString()};
   if(b.action==="reopenWeek")st.week={...(st.week||{}),status:"Reopened"};
   return st;}
@@ -218,9 +219,9 @@ function enqueue(b){
   dirty++; clearTimeout(qTimer); qTimer=setTimeout(flushQ,350);}
 async function flushQ(){if(qBusy)return;qBusy=true;let failed=false,last=null;
   while(Q.length){const b=Q.shift();
-    try{const d=await api(b);if(!d.ok){failed=true;if(d.error==="bad_pin"){Q.length=0;show("pin");}if(d.error==="locked"){Q.length=0;lockedMsg=1;}}else last=d;}catch(e){failed=true;}}
+    try{const d=await api(b);if(!d.ok){failed=true;if(d.error==="bad_pin"){Q.length=0;show("pin");}if(d.error==="locked"){Q.length=0;lockedMsg=1;}if(d.error==="no_backup"||d.error==="owner_only")lockedMsg=d.error;}else last=d;}catch(e){failed=true;}}
   qBusy=false;
-  if(failed){toast(lockedMsg?"🔒 List is locked – sent for pricing":"Couldn't save a change. Refreshing…");lockedMsg=0;refresh(true);}
+  if(failed){toast(lockedMsg==="no_backup"?"No reset backup to restore":lockedMsg==="owner_only"?"Only Wayne can do that":lockedMsg?"🔒 List is locked – sent for pricing":"Couldn't save a change. Refreshing…");lockedMsg=0;refresh(true);}
   else if(last&&!Q.length){dirty=0;S=last;saveCache();if(!openSheet())render();}}
 const openSheet=()=>!!document.querySelector(".sheet.show");
 // Instant: change locally, render, save in background
@@ -251,10 +252,11 @@ function weekUI(){const w=S.week||{},L=isLocked(S);
   const dt=w.at?new Date(w.at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"}):"";
   const lbl={Submitted:"Sent to Shopping",Priced:"Priced by Shopping",Ordered:"Ordered"}[w.status]||"";
   document.getElementById("weekBar").innerHTML=L?'<div class="lockbar">🔒 '+lbl+(dt?' on '+esc(dt):'')+' – list locked'+(w.status==="Submitted"?'<br><span style="font-weight:400">Shopping is finding the cheapest shops (GF items stay labelled gluten-free).</span>':'')+'</div>':'';
-  document.getElementById("ownerBox").innerHTML=!isOwner()?'':(L?'<button class="btn owner" onclick="reopenWeek()">🔓 Reopen list</button>':'<button class="btn owner" onclick="sendWeek()">📤 Send for pricing</button>');
+  document.getElementById("ownerBox").innerHTML=!isOwner()?'':(L?'<button class="btn owner" onclick="reopenWeek()">🔓 Reopen list</button>':'<button class="btn owner" onclick="sendWeek()">📤 Send for pricing</button>')+(isOwner()?'<button class="btn owner" onclick="restoreReset()">⏪ Restore before reset</button>':'');
   document.querySelectorAll(".fab").forEach(f=>f.style.opacity=L&&!isOwner()?".45":"");}
 function sendWeek(){const kept=live().filter(i=>i.keep).length,ex=S.added.filter(a=>!a.meal&&a.keep!==false).length,ms=(S.meals||[]).length,ing=S.added.filter(a=>a.meal&&a.keep!==false).length;
   if(confirm("Send this week's list to Shopping for pricing?\n\n• "+kept+" regular items\n• "+ex+" added items\n• "+ms+" meals ("+ing+" ingredients)\n\nThe list will be locked for the family until you reopen it."))act({action:"submitWeek"},"Sent for pricing ✓");}
+function restoreReset(){if(!isOwner())return;if(confirm("Restore the list as it was before the last Reset week?\n\nKeep/Lose choices, added items, meals and the week status come back. Anything added since the reset is kept."))act({action:"restoreLastReset"},"Restoring list from before reset…");}
 function reopenWeek(){if(confirm("Reopen the list so the family can edit again?"))act({action:"reopenWeek"},"List reopened");}
 function render(){weekUI();
   document.getElementById("hello").textContent = me() ? "Hi "+me()+" 👋 here's this week's list" : "This week's list";
