@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8684A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Family Shopping List</title>
+<style>
+:root{--bg:#FFF8F1;--card:#fff;--ink:#2B2320;--soft:#7A6A62;--line:#F0E3D8;--coral:#E8684A;--coral2:#F49A6B;--green:#3FA46A;--gf:#7C5CC4;--r:18px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 120px}
+header{background:linear-gradient(135deg,var(--coral),var(--coral2));color:#fff;padding:calc(env(safe-area-inset-top) + 22px) 20px 38px;border-radius:0 0 28px 28px}
+header h1{margin:0;font-size:26px}header p{margin:4px 0 0;opacity:.9;font-size:14px}
+.sum{background:var(--card);border-radius:var(--r);padding:14px 16px;margin:-22px 0 14px;box-shadow:0 4px 14px rgba(120,60,30,.08);display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--soft)}
+.sum b{color:var(--ink);font-size:18px;margin-right:4px}
+.gfrule{background:#F3EEFC;color:#4B3590;border-radius:14px;padding:10px 14px;font-size:13px;margin-bottom:6px}
+h2{font-size:15px;margin:20px 4px 8px;display:flex;align-items:center;gap:8px}h2 small{color:var(--soft);font-weight:500}
+.list{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:0 4px 14px rgba(120,60,30,.06)}
+.row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}.row.lost .nm{text-decoration:line-through;color:var(--soft)}
+.nm{flex:1;font-size:15px}
+.badge{display:inline-block;background:var(--gf);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.new{background:var(--coral)}
+.who{display:block;color:var(--soft);font-size:12px}
+.kl{display:flex;background:#F4ECE5;border-radius:999px;padding:3px}
+.kl button{border:0;background:none;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;color:var(--soft)}
+.kl .k.on{background:var(--green);color:#fff}.kl .l.on{background:#C9483B;color:#fff}
+.rm{border:0;background:none;color:#B9A9A0;font-size:18px;padding:4px 2px 4px 6px}
+.restore{border:0;background:#F4ECE5;color:var(--ink);border-radius:999px;padding:7px 12px;font-weight:700;font-size:12px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.btn{border:0;border-radius:14px;padding:13px 16px;font-weight:700;font-size:15px;background:#fff;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.06);flex:1}
+.btn.p{background:var(--coral);color:#fff}
+.fab{position:fixed;right:20px;bottom:calc(env(safe-area-inset-bottom) + 20px);border:0;background:var(--coral);color:#fff;border-radius:999px;padding:16px 22px;font-size:16px;font-weight:700;box-shadow:0 8px 22px rgba(232,104,74,.45)}
+.sheet{position:fixed;inset:0;background:rgba(40,25,20,.45);display:none;align-items:flex-end;justify-content:center;z-index:9}
+.sheet.show{display:flex}
+.panel{background:#fff;width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px 18px calc(env(safe-area-inset-bottom) + 20px)}
+.panel h3{margin:0 0 14px}
+label{display:block;font-size:13px;color:var(--soft);margin:10px 0 4px}
+input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#FFFCF9;color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px}.chk input{width:22px;height:22px}
+.pin{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.pin .panel{border-radius:24px;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(120,60,30,.12)}
+.pin input{text-align:center}#pinIn{font-size:24px;letter-spacing:6px}
+.err{color:#C9483B;font-size:14px;min-height:20px;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;display:none;z-index:10;white-space:normal;max-width:90vw}
+.toast button{border:0;background:none;color:var(--coral2);font-weight:700;margin-left:10px;font-size:14px}
+.hidden{display:none}
+.fab2{right:auto;left:20px;background:var(--ink);box-shadow:0 8px 22px rgba(0,0,0,.3)}
+#scanVideo{width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover}
+.prod{display:flex;gap:12px;align-items:center;margin:6px 0 4px}.prod img{width:64px;height:64px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--line)}
+.warn{background:#FFF0D6;color:#8A5A06;border-radius:12px;padding:10px 12px;font-size:13px;margin-top:10px}.okgf{background:#E2F4E9;color:#23794A}
+.bc{font-size:12px;color:var(--soft)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}
+.tab{border:0;background:#fff;color:var(--ink);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.tab.on{background:var(--ink);color:#fff}
+.meal{background:var(--card);border-radius:var(--r);box-shadow:0 4px 14px rgba(120,60,30,.06);margin-top:12px;overflow:hidden}
+.mhead{display:flex;align-items:flex-start;gap:10px;padding:14px;border-bottom:1px solid var(--line)}
+.mhead .nm{font-weight:700;font-size:16px}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.req{background:#FFF0D6;color:#9A6207}.done{background:#E2F4E9;color:#23794A}
+.mnote{padding:10px 14px;color:var(--soft);font-size:13px}
+textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#FFFCF9;color:var(--ink);font-family:inherit;min-height:70px}
+</style>
+</head>
+<body>
+<div id="pinView" class="pin hidden">
+  <div class="panel">
+    <div style="font-size:44px">🛒</div>
+    <h3>Family Shopping List</h3>
+    <p style="color:var(--soft);font-size:14px;margin-top:0">Enter the family PIN</p>
+    <input id="pinIn" type="password" inputmode="numeric" autocomplete="off">
+    <label style="text-align:left">Your name</label>
+    <input id="nameIn" placeholder="e.g. Mum">
+    <div class="err" id="pinErr"></div>
+    <button class="btn p" style="width:100%;margin-top:6px" onclick="login()">Open list</button>
+  </div>
+</div>
+
+<div id="appView" class="hidden">
+  <header><h1>🛒 Family Shopping</h1><p id="hello">This week's list</p></header>
+  <div class="wrap">
+    <div class="sum" id="sum"></div>
+    <div class="gfrule">🌾 Gluten-free rule: GF items may only be swapped for products labelled gluten-free.</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="listView"><div id="groups"></div></div>
+    <div id="mealView" class="hidden">
+      <div class="mnote" style="padding:8px 4px">Add a meal you'd like this week. I'll work out the ingredients, always gluten-free, and add them here for you to Keep or Lose.</div>
+      <div id="meals"></div>
+      <button class="btn p" style="width:100%;margin-top:14px" onclick="openMeal()">🍲 Add a meal</button>
+    </div>
+    <div class="actions">
+      <button class="btn p" onclick="copyList()">📋 Copy final list</button>
+      <button class="btn" onclick="resetWeek()">↺ Reset week</button>
+    </div>
+    <div id="removedWrap"></div>
+  </div>
+  <button class="fab" onclick="openAdd()">＋ Add item</button>
+  <button class="fab fab2" onclick="openScan()">📷 Scan</button>
+</div>
+
+<div class="sheet" id="addSheet" onclick="if(event.target===this)closeAdd()">
+  <div class="panel">
+    <h3>Add something we need</h3>
+    <label>Item</label><input id="aName" placeholder="e.g. Gluten-free pizza bases">
+    <div class="two">
+      <div><label>Quantity</label><input id="aQty" value="1"></div>
+      <div><label>Category (optional)</label><select id="aCat"></select></div>
+    </div>
+    <label>Added by</label><input id="aBy">
+    <label class="chk"><input type="checkbox" id="aGf"> Must be gluten-free</label>
+    <div class="actions"><button class="btn" onclick="closeAdd()">Cancel</button><button class="btn p" onclick="addItem()">Add to list</button></div>
+  </div>
+</div>
+<div class="sheet" id="mealSheet" onclick="if(event.target===this)closeMeal()">
+  <div class="panel">
+    <h3>Request a meal</h3>
+    <label>Meal</label><input id="mName" placeholder="e.g. Chilli con carne">
+    <div class="two">
+      <div><label>Servings (optional)</label><input id="mServ" inputmode="numeric" placeholder="4"></div>
+      <div><label>Added by</label><input id="mBy"></div>
+    </div>
+    <label>Note (optional)</label><textarea id="mNote" placeholder="e.g. not too spicy, with rice"></textarea>
+    <div class="actions"><button class="btn" onclick="closeMeal()">Cancel</button><button class="btn p" onclick="addMeal()">Add meal</button></div>
+  </div>
+</div>
+<div class="sheet" id="scanSheet" onclick="if(event.target===this)closeScan()">
+  <div class="panel">
+    <h3>Scan a barcode</h3>
+    <video id="scanVideo" playsinline muted></video>
+    <div class="bc" id="scanMsg" style="margin-top:6px">Point the camera at the barcode.</div>
+    <label>Or type the barcode</label>
+    <div class="two"><input id="bcIn" inputmode="numeric" placeholder="e.g. 5000159484695"><button class="btn p" onclick="lookup(document.getElementById('bcIn').value)">Look up</button></div>
+    <div class="actions"><button class="btn" onclick="closeScan()">Cancel</button></div>
+  </div>
+</div>
+<div class="sheet" id="confSheet" onclick="if(event.target===this)closeConf()">
+  <div class="panel">
+    <h3 id="cTitle">Add scanned item</h3>
+    <div class="prod"><img id="cImg" alt="" class="hidden"><div><div id="cBrand" style="font-weight:700"></div><div class="bc" id="cCode"></div></div></div>
+    <label>Name</label><input id="cName" placeholder="Type the product name">
+    <div class="two"><div><label>Qty</label><input id="cQty" value="1" inputmode="numeric"></div><div><label>Added by</label><input id="cBy"></div></div>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="cGf" style="width:auto"> Gluten-free (GF) item</label>
+    <div class="warn" id="cWarn"></div>
+    <div class="actions"><button class="btn" onclick="closeConf()">Cancel</button><button class="btn p" onclick="addScanned()">Add to list</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== CONFIG: paste the Apps Script web app URL here ===== */
+const API_URL = "https://script.google.com/macros/s/AKfycbx8UMR2nBZxNk01738CBqe0HGu669idYT0AKBHYLxKbPkafpnTC_22XlI0fdxM5UZudKw/exec";
+/* ========================================================== */
+const CATS = ["Gluten-free","Meat & fish","Dairy & eggs","Fruit & veg","Cupboard","Frozen","Other"];
+const ICON = {"Gluten-free":"🌾","Meat & fish":"🍗","Dairy & eggs":"🧀","Fruit & veg":"🥕","Cupboard":"🥫","Frozen":"🧊","Other":"🛍️"};
+const DEMO = new URLSearchParams(location.search).has("demo");
+let S = {items:[],added:[],meals:[]}, undoFn = null, view = "list";
+const pin = () => localStorage.getItem("fsl_pin") || "";
+const me = () => localStorage.getItem("fsl_name") || "";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const live = () => S.items.filter(i => i.active !== false);
+
+const demo = {ok:true,items:[
+  {id:"d1",name:"Free From loaf",category:"Gluten-free",gf:true,keep:true},
+  {id:"d2",name:"Gluten-free nuggets",category:"Gluten-free",gf:true,keep:true},
+  {id:"d3",name:"Chicken fillets",category:"Meat & fish",gf:false,keep:true},
+  {id:"d4",name:"Large eggs 12",category:"Dairy & eggs",gf:false,keep:false},
+  {id:"d5",name:"Bananas",category:"Fruit & veg",gf:false,keep:true},
+  {id:"d6",name:"Baked beans",category:"Cupboard",gf:false,keep:true},
+  {id:"d7",name:"Ice lollies",category:"Frozen",gf:false,keep:true,active:false}],
+  added:[{id:"a1",name:"Birthday candles",qty:"1",category:"Other",gf:false,by:"Sam",keep:true},
+    {id:"c1",name:"Lean beef mince 500g",qty:"1",category:"Meat & fish",gf:true,meal:"m1",keep:true},
+    {id:"c2",name:"Red kidney beans 400g tin",qty:"2",category:"Cupboard",gf:true,meal:"m1",keep:true},
+    {id:"c3",name:"Chopped tomatoes 400g tin",qty:"2",category:"Cupboard",gf:true,meal:"m1",keep:true},
+    {id:"c4",name:"Onions",qty:"2",category:"Fruit & veg",gf:true,meal:"m1",keep:false},
+    {id:"c5",name:"Red pepper",qty:"1",category:"Fruit & veg",gf:true,meal:"m1",keep:true},
+    {id:"c6",name:"Gluten-free beef stock cubes (e.g. Kallo)",qty:"1",category:"Gluten-free",gf:true,meal:"m1",keep:true},
+    {id:"c7",name:"Gluten-free chilli seasoning",qty:"1",category:"Gluten-free",gf:true,meal:"m1",keep:true},
+    {id:"c8",name:"Long grain rice 1kg",qty:"1",category:"Cupboard",gf:true,meal:"m1",keep:true}],
+  meals:[{id:"m1",name:"Chilli con carne",servings:"4",by:"Wayne",note:"with rice",status:"Ingredients added"},
+    {id:"m2",name:"Fish pie",servings:"",by:"Sam",note:"",status:"Requested"}]};
+async function api(b){
+  if (DEMO){ const f=id=>demo.items.find(x=>x.id===id);
+    if(b.action==="setKeep"&&f(b.id))f(b.id).keep=b.keep; if(b.action==="removeItem")f(b.id).active=false; if(b.action==="restoreItem")f(b.id).active=true;
+    if(b.action==="add")demo.added.push({id:String(Date.now()),name:b.name,qty:b.qty,category:b.category||"Other",gf:b.gf,by:b.by,barcode:b.barcode,brand:b.brand,gfCheck:b.gfCheck,keep:true});
+    if(b.action==="remove")demo.added=demo.added.filter(a=>a.id!==b.id); if(b.action==="restoreAdded")demo.added.push(b.item);
+    if(b.action==="setKeep"&&!f(b.id)){const a=demo.added.find(x=>x.id===b.id);if(a)a.keep=b.keep;}
+    if(b.action==="addMeal")demo.meals.push({id:String(Date.now()),name:b.name,servings:b.servings,by:b.by,note:b.note,status:"Requested"});
+    if(b.action==="removeMeal"){demo.meals=demo.meals.filter(m=>m.id!==b.id);demo.added=demo.added.filter(a=>a.meal!==b.id);}
+    if(b.action==="restoreMeal"){demo.meals.push(b.meal);demo.added.push(...b.ingredients);}
+    if(b.action==="reset"){demo.added=[];demo.meals=[];demo.items.forEach(i=>i.keep=true);}
+    return JSON.parse(JSON.stringify(demo)); }
+  const r = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...b,pin:pin(),by:b.by??me()})});
+  return r.json();
+}
+function toast(t,undo){const e=document.getElementById("toast");undoFn=undo||null;e.innerHTML=esc(t)+(undo?'<button onclick="doUndo()">Undo</button>':'');e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>{e.style.display="none";undoFn=null;},undo?6000:2200);}
+async function doUndo(){const f=undoFn;undoFn=null;document.getElementById("toast").style.display="none";if(f)await f();}
+function show(v){document.getElementById("pinView").classList.toggle("hidden",v!=="pin");document.getElementById("appView").classList.toggle("hidden",v!=="app");}
+async function login(){localStorage.setItem("fsl_pin",document.getElementById("pinIn").value.trim());localStorage.setItem("fsl_name",document.getElementById("nameIn").value.trim());await load();}
+async function load(){
+  try{const d=await api({action:"get"});
+    if(!d.ok){show("pin");document.getElementById("pinErr").textContent=d.error==="bad_pin"?"That PIN didn't work.":"Couldn't load: "+d.error;return;}
+    S=d;show("app");render();
+  }catch(e){show("pin");document.getElementById("pinErr").textContent="Can't reach the list right now.";}
+}
+async function act(b,msg){const d=await api(b);if(d.ok){S=d;render();if(msg)toast(msg);}else toast("Something went wrong");}
+
+function render(){
+  document.getElementById("hello").textContent = me() ? "Hi "+me()+" 👋 here's this week's list" : "This week's list";
+  const meals=S.meals||[], extra=S.added.filter(a=>!a.meal);
+  const kept=live().filter(i=>i.keep).length, lost=live().length-kept;
+  document.getElementById("sum").innerHTML='<span><b>'+kept+'</b>keeping</span><span><b>'+lost+'</b>not this week</span><span><b>'+extra.length+'</b>added</span><span><b>'+meals.length+'</b>meals</span>';
+  document.getElementById("tabs").innerHTML='<button class="tab'+(view==="list"?' on':'')+'" onclick="view=\'list\';render()">🛒 List</button><button class="tab'+(view==="meals"?' on':'')+'" onclick="view=\'meals\';render()">🍲 Meals · '+meals.length+'</button>';
+  document.getElementById("listView").classList.toggle("hidden",view!=="list");
+  document.getElementById("mealView").classList.toggle("hidden",view!=="meals");
+  document.querySelector(".fab").classList.toggle("hidden",view!=="list");
+  document.getElementById("meals").innerHTML = meals.map(m=>{const ing=S.added.filter(a=>a.meal===m.id);const done=m.status==="Ingredients added";
+    return '<div class="meal"><div class="mhead"><div class="nm">'+esc(m.name)+'<span class="pill '+(done?'done':'req')+'">'+(done?'Ingredients added':'Requested')+'</span>'+
+      '<span class="who">'+(m.servings?'Serves '+esc(m.servings)+' · ':'')+(m.by?'added by '+esc(m.by):'')+'</span></div><button class="rm" aria-label="Remove meal" onclick="removeMeal(\''+m.id+'\')">✕</button></div>'+
+      (m.note?'<div class="mnote">📝 '+esc(m.note)+'</div>':'')+
+      (ing.length?ing.map(a=>'<div class="row'+(a.keep?'':' lost')+'"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+(a.gf?'<span class="badge">GF</span>':'')+'</div>'+
+        '<div class="kl"><button class="k'+(a.keep?' on':'')+'" onclick="act({action:\'setKeep\',id:\''+a.id+'\',keep:true})">Keep</button><button class="l'+(a.keep?'':' on')+'" onclick="act({action:\'setKeep\',id:\''+a.id+'\',keep:false})">Lose</button></div></div>').join(""):
+        '<div class="mnote">⏳ Ingredients coming soon, all gluten-free.</div>')+'</div>';}).join("");
+  document.getElementById("groups").innerHTML = CATS.map(c=>{
+    const its=live().filter(i=>i.category===c), ad=extra.filter(a=>a.category===c);
+    if(!its.length&&!ad.length) return "";
+    return '<h2>'+ICON[c]+' '+c+' <small>'+(its.filter(i=>i.keep).length+ad.length)+'</small></h2><div class="list">'+
+      its.map(i=>'<div class="row'+(i.keep?'':' lost')+'"><div class="nm">'+esc(i.name)+(i.gf?'<span class="badge">GF</span>':'')+'</div>'+
+        '<div class="kl"><button class="k'+(i.keep?' on':'')+'" onclick="act({action:\'setKeep\',id:\''+i.id+'\',keep:true})">Keep</button><button class="l'+(i.keep?'':' on')+'" onclick="act({action:\'setKeep\',id:\''+i.id+'\',keep:false})">Lose</button></div>'+
+        '<button class="rm" aria-label="Remove" onclick="removeRegular(\''+i.id+'\')">✕</button></div>').join("")+
+      ad.map(a=>'<div class="row"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+'<span class="badge new">NEW</span>'+(a.gf?'<span class="badge">GF</span>':'')+(a.by?'<span class="who">added by '+esc(a.by)+'</span>':'')+(a.barcode?'<span class="who">📷 '+esc(a.barcode)+(a.gfCheck&&a.gfCheck!=="labelled gluten-free"?' · GF: '+esc(a.gfCheck):'')+'</span>':'')+'</div>'+
+        '<button class="rm" aria-label="Remove" onclick="removeAdded(\''+a.id+'\')">✕</button></div>').join("")+'</div>';
+  }).join("");
+  const gone=S.items.filter(i=>i.active===false);
+  document.getElementById("removedWrap").innerHTML = gone.length ? '<h2>🗑️ Removed items</h2><div class="list">'+gone.map(i=>'<div class="row lost"><div class="nm">'+esc(i.name)+(i.gf?'<span class="badge">GF</span>':'')+'<span class="who">'+esc(i.category)+'</span></div><button class="restore" onclick="act({action:\'restoreItem\',id:\''+i.id+'\'},\'Restored ✓\')">Restore</button></div>').join("")+'</div>' : "";
+}
+async function removeRegular(id){const i=S.items.find(x=>x.id===id);if(!i||!confirm('Remove "'+i.name+'" from the regular list?'))return;await act({action:"removeItem",id});toast("Removed "+i.name,()=>act({action:"restoreItem",id},"Restored ✓"));}
+async function removeAdded(id){const a=S.added.find(x=>x.id===id);if(!a||!confirm('Remove "'+a.name+'"?'))return;await act({action:"remove",id});toast("Removed "+a.name,()=>act({action:"restoreAdded",item:a},"Restored ✓"));}
+document.getElementById("aCat").innerHTML='<option value="">Not sure</option>'+CATS.map(c=>'<option>'+c+'</option>').join("");
+function openAdd(){document.getElementById("aBy").value=me();document.getElementById("addSheet").classList.add("show");setTimeout(()=>document.getElementById("aName").focus(),50);}
+function openMeal(){document.getElementById("mBy").value=me();document.getElementById("mealSheet").classList.add("show");setTimeout(()=>document.getElementById("mName").focus(),50);}
+function closeMeal(){document.getElementById("mealSheet").classList.remove("show");}
+async function addMeal(){const name=document.getElementById("mName").value.trim();if(!name){toast("Type a meal first");return;}
+  await act({action:"addMeal",name,servings:document.getElementById("mServ").value.trim(),by:document.getElementById("mBy").value.trim(),note:document.getElementById("mNote").value.trim()},"Meal added ✓");
+  ["mName","mServ","mNote"].forEach(i=>document.getElementById(i).value="");closeMeal();}
+async function removeMeal(id){const m=(S.meals||[]).find(x=>x.id===id);if(!m||!confirm('Remove meal "'+m.name+'" and its ingredients?'))return;
+  const ing=S.added.filter(a=>a.meal===id);await act({action:"removeMeal",id});toast("Removed "+m.name,()=>act({action:"restoreMeal",meal:m,ingredients:ing},"Restored ✓"));}
+// ---- Barcode scan: BarcodeDetector where supported, ZXing (CDN) fallback e.g. iPhone Safari, manual entry. Camera needs HTTPS.
+let scanStream=null, scanTimer=null, zxCtl=null, scanned=null;
+const FORMATS=["ean_13","ean_8","upc_a","upc_e"];
+function loadZX(){return window.ZXingBrowser?Promise.resolve():new Promise((ok,no)=>{const t=document.createElement("script");t.src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js";t.onload=ok;t.onerror=no;document.head.appendChild(t);});}
+async function openScan(){document.getElementById("scanSheet").classList.add("show");document.getElementById("bcIn").value="";const msg=document.getElementById("scanMsg"),v=document.getElementById("scanVideo");
+  if(!navigator.mediaDevices||!window.isSecureContext){msg.textContent="Camera not available here, type the barcode below.";return;}
+  try{
+    if("BarcodeDetector" in window && (await BarcodeDetector.getSupportedFormats()).includes("ean_13")){
+      const det=new BarcodeDetector({formats:FORMATS});
+      scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});v.srcObject=scanStream;await v.play();
+      scanTimer=setInterval(async()=>{try{const r=await det.detect(v);if(r.length)gotCode(r[0].rawValue);}catch(e){}},250);
+    }else{
+      await loadZX();const rd=new ZXingBrowser.BrowserMultiFormatReader();
+      zxCtl=await rd.decodeFromConstraints({video:{facingMode:"environment"}},v,(res)=>{if(res)gotCode(res.getText());});
+    }
+  }catch(e){msg.textContent="Couldn't start the camera ("+(e.name||"error")+"). Type the barcode below.";}
+}
+function stopCam(){clearInterval(scanTimer);scanTimer=null;if(zxCtl){try{zxCtl.stop()}catch(e){}zxCtl=null;}if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}}
+function closeScan(){stopCam();document.getElementById("scanSheet").classList.remove("show");}
+function gotCode(c){stopCam();if(navigator.vibrate)navigator.vibrate(80);lookup(c);}
+async function lookup(raw){const code=String(raw||"").replace(/\D/g,"");if(code.length<8){toast("Barcode should be 8-14 digits");return;}
+  closeScan();toast("Looking up "+code+"…");let p=null;
+  try{const r=await fetch("https://world.openfoodfacts.org/api/v2/product/"+code+".json?fields=product_name,product_name_en,brands,quantity,image_front_small_url,labels_tags,allergens_tags,traces_tags");const j=await r.json();if(j.status===1)p=j.product;}catch(e){}
+  showConf(code,p);}
+function gfInfo(p){if(!p)return{gf:false,check:"not found",msg:"Product not found, so please type the name. Only tick GF if the pack says gluten-free."};
+  const L=p.labels_tags||[],A=p.allergens_tags||[],T=p.traces_tags||[];
+  if(L.includes("en:gluten-free")||L.includes("en:no-gluten"))return{gf:true,check:"labelled gluten-free",ok:1,msg:"✓ Open Food Facts says this is labelled gluten-free. Double-check the pack."};
+  if(A.includes("en:gluten"))return{gf:false,check:"contains gluten",msg:"⚠️ Contains gluten according to Open Food Facts. Not suitable as a GF item."};
+  if(T.includes("en:gluten"))return{gf:false,check:"may contain gluten",msg:"⚠️ May contain gluten (traces). Not labelled gluten-free."};
+  return{gf:false,check:"check label",msg:"Not labelled gluten-free in Open Food Facts. Check the pack before ticking GF."};}
+function showConf(code,p){const g=gfInfo(p),nm=p?((p.product_name_en||p.product_name||"")+(p.quantity?" "+p.quantity:"")).trim():"";
+  scanned={code,brand:p&&p.brands?p.brands.split(",")[0].trim():"",image:p&&p.image_front_small_url||"",check:g.check};
+  document.getElementById("cTitle").textContent=p?"Add scanned item":"Product not found";
+  const im=document.getElementById("cImg");im.classList.toggle("hidden",!scanned.image);if(scanned.image)im.src=scanned.image;
+  document.getElementById("cBrand").textContent=scanned.brand;document.getElementById("cCode").textContent="Barcode "+code;
+  document.getElementById("cName").value=(scanned.brand&&nm&&!nm.toLowerCase().includes(scanned.brand.toLowerCase())?scanned.brand+" ":"")+nm;
+  document.getElementById("cQty").value="1";document.getElementById("cBy").value=me();document.getElementById("cGf").checked=g.gf;
+  const w=document.getElementById("cWarn");w.textContent=g.msg;w.classList.toggle("okgf",!!g.ok);
+  document.getElementById("confSheet").classList.add("show");if(!p)setTimeout(()=>document.getElementById("cName").focus(),50);}
+function closeConf(){document.getElementById("confSheet").classList.remove("show");}
+async function addScanned(){const name=document.getElementById("cName").value.trim();if(!name){toast("Type a name first");return;}const gf=document.getElementById("cGf").checked;
+  await act({action:"add",name,qty:document.getElementById("cQty").value.trim()||"1",category:gf?"Gluten-free":"Other",gf,by:document.getElementById("cBy").value.trim(),
+    barcode:scanned.code,brand:scanned.brand,image:scanned.image,gfCheck:gf&&scanned.check!=="labelled gluten-free"?"ticked by family - check":scanned.check},"Added ✓");closeConf();}
+function closeAdd(){document.getElementById("addSheet").classList.remove("show");}
+async function addItem(){
+  const name=document.getElementById("aName").value.trim();if(!name){toast("Type an item first");return;}
+  const gf=document.getElementById("aGf").checked;let cat=document.getElementById("aCat").value||(gf?"Gluten-free":"Other");
+  await act({action:"add",name,qty:document.getElementById("aQty").value.trim()||"1",category:cat,gf,by:document.getElementById("aBy").value.trim()},"Added ✓");
+  document.getElementById("aName").value="";document.getElementById("aQty").value="1";document.getElementById("aGf").checked=false;document.getElementById("aCat").value="";closeAdd();
+}
+function finalText(){
+  const L=[];CATS.forEach(c=>{const k=live().filter(i=>i.category===c&&i.keep),x=S.added.filter(a=>!a.meal&&a.category===c);if(!k.length&&!x.length)return;
+    L.push(c.toUpperCase());k.forEach(i=>L.push("- "+i.name+(i.gf?" [GF]":"")));x.forEach(a=>L.push("- "+a.qty+" x "+a.name+(a.gf?" [GF]":"")+(a.by?" (added by "+a.by+")":"")));L.push("");});
+  (S.meals||[]).forEach(m=>{L.push("MEAL: "+m.name+(m.servings?" (serves "+m.servings+")":"")+(m.status==="Ingredients added"?"":" - ingredients to be added")+(m.note?" - "+m.note:""));
+    S.added.filter(a=>a.meal===m.id&&a.keep).forEach(a=>L.push("- "+a.qty+" x "+a.name+(a.gf?" [GF]":"")+" ["+m.name+"]"));L.push("");});
+  L.push("GF rule: GF items may only be swapped for products labelled gluten-free.");return L.join("\n");
+}
+async function copyList(){const t=finalText();try{await navigator.clipboard.writeText(t);toast("Final list copied ✓");}catch(e){prompt("Copy the list:",t);}}
+async function resetWeek(){if(confirm("Start a new week? Everything goes back to Keep, and added items and meals are cleared (saved to History)."))await act({action:"reset"},"New week started");}
+document.getElementById("pinIn").addEventListener("keydown",e=>{if(e.key==="Enter")login();});
+document.getElementById("aName").addEventListener("keydown",e=>{if(e.key==="Enter")addItem();});
+if(DEMO||pin())load();else show("pin");
+const _bc=new URLSearchParams(location.search).get("scan");if(DEMO&&_bc)setTimeout(()=>lookup(_bc),400);
+</script>
+</body>
+</html>
