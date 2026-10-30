@@ -87,6 +87,7 @@ textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px
   <header><h1>🛒 Family Shopping</h1><p id="hello">This week's list</p></header>
   <div class="wrap">
     <div class="sum" id="sum"></div>
+    <button class="btn" id="syncBtn" onclick="syncNow()" style="width:100%;margin:8px 0">🔄 Refresh</button>
     <div id="weekBar"></div>
     <div class="gfrule">🌾 Gluten-free: we check the ingredients, so a product is fine without a GF label as long as nothing in it contains gluten (wheat, barley, rye, malt).</div>
     <div class="gfrule">🗓️ The order is placed on Monday for same-day or next-day delivery, so please add anything you need by Sunday night.</div>
@@ -246,6 +247,14 @@ async function load(){
     S=d;saveCache();show("app");render();
   }catch(e){show("pin");document.getElementById("pinErr").textContent="Can't reach the list right now.";}
 }
+async function syncNow(){const b=document.getElementById("syncBtn");if(b)b.disabled=true;
+  try{if(Q.length||qBusy){clearTimeout(qTimer);await flushQ();}
+    const d=await api({action:"get"});
+    if(d.ok){if(Q.length||qBusy){toast("Still saving – try again in a moment");}else{S=d;dirty=0;saveCache();render();toast("Up to date ✓");}}
+    else if(d.error==="bad_pin")show("pin");else toast("Couldn't refresh – check your connection");}
+  catch(e){toast("Couldn't refresh – check your connection");}
+  finally{if(b)b.disabled=false;}}
+setInterval(()=>{if(!document.hidden&&!DEMO&&pin()&&!openSheet())refresh();},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!DEMO&&pin())refresh();});
 
 function weekUI(){const w=S.week||{},L=isLocked(S);
