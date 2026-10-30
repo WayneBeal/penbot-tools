@@ -68,9 +68,15 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .mnote{padding:10px 14px;color:var(--soft);font-size:13px}
 textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#FFFCF9;color:var(--ink);font-family:inherit;min-height:70px}
 .badge.dup{background:#FFE4D6;color:#B4471A}
+button{transition:transform .08s ease,filter .08s ease,box-shadow .08s ease,background-color .2s ease;-webkit-user-select:none;user-select:none}
+button:active:not(:disabled){transform:scale(.96);filter:brightness(.88);box-shadow:inset 0 2px 6px rgba(0,0,0,.18)!important}
+#syncBtn .ic{display:inline-block}
+#syncBtn.busy{opacity:.85}#syncBtn.busy .ic{animation:spin .8s linear infinite}
+#syncBtn.ok{background:var(--green);color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
-<body>
+<body ontouchstart="">
 <div id="pinView" class="pin hidden">
   <div class="panel">
     <div style="font-size:44px">🛒</div>
@@ -88,7 +94,7 @@ textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px
   <header><h1>🛒 Family Shopping</h1><p id="hello">This week's list</p></header>
   <div class="wrap">
     <div class="sum" id="sum"></div>
-    <button class="btn" id="syncBtn" onclick="syncNow()" style="width:100%;margin:8px 0">🔄 Refresh</button>
+    <button class="btn" id="syncBtn" onclick="syncNow()" style="width:100%;margin:8px 0"><span class="ic">🔄</span> <span class="lb">Refresh</span></button>
     <div id="weekBar"></div>
     <div class="gfrule">🌾 Gluten-free: we check the ingredients, so a product is fine without a GF label as long as nothing in it contains gluten (wheat, barley, rye, malt).</div>
     <div class="gfrule">🗓️ The order is placed on Monday for same-day or next-day delivery, so please add anything you need by Sunday night.</div>
@@ -248,13 +254,16 @@ async function load(){
     S=d;saveCache();show("app");render();
   }catch(e){show("pin");document.getElementById("pinErr").textContent="Can't reach the list right now.";}
 }
-async function syncNow(){const b=document.getElementById("syncBtn");if(b)b.disabled=true;
+function syncUI(state,txt){const b=document.getElementById("syncBtn");if(!b)return;clearTimeout(b._t);b.classList.remove("busy","ok");
+  if(state)b.classList.add(state);b.querySelector(".lb").textContent=txt||"Refresh";b.disabled=state==="busy";
+  if(state==="ok")b._t=setTimeout(()=>syncUI(),1500);}
+async function syncNow(){const b=document.getElementById("syncBtn");if(b&&b.disabled)return;try{navigator.vibrate&&navigator.vibrate(15);}catch(e){}syncUI("busy","Refreshing…");let ok=false;
   try{if(Q.length||qBusy){clearTimeout(qTimer);await flushQ();}
     const d=await api({action:"get"});
-    if(d.ok){if(Q.length||qBusy){toast("Still saving – try again in a moment");}else{S=d;dirty=0;saveCache();render();toast("Up to date ✓");}}
+    if(d.ok){if(Q.length||qBusy){toast("Still saving – try again in a moment");}else{S=d;dirty=0;saveCache();render();ok=true;toast("Up to date ✓");}}
     else if(d.error==="bad_pin")show("pin");else toast("Couldn't refresh – check your connection");}
   catch(e){toast("Couldn't refresh – check your connection");}
-  finally{if(b)b.disabled=false;}}
+  finally{ok?syncUI("ok","Up to date ✓"):syncUI();}}
 setInterval(()=>{if(!document.hidden&&!DEMO&&pin()&&!openSheet())refresh();},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!DEMO&&pin())refresh();});
 
