@@ -48,6 +48,8 @@ input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;display:none;z-index:10;white-space:normal;max-width:90vw}
 .toast button{border:0;background:none;color:var(--coral2);font-weight:700;margin-left:10px;font-size:14px}
 .hidden{display:none}
+.lockbar{background:#E8F0FF;color:#1F3F8A;border-radius:14px;padding:12px 14px;font-size:14px;font-weight:600;margin:10px 0}
+.owner{width:100%;margin-top:10px;background:#1F3F8A;color:#fff}
 button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .btn,.tab,.restore,.toast button{min-height:44px}
 .fab2{right:auto;left:20px;background:var(--ink);box-shadow:0 8px 22px rgba(0,0,0,.3)}
@@ -85,6 +87,7 @@ textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px
   <header><h1>🛒 Family Shopping</h1><p id="hello">This week's list</p></header>
   <div class="wrap">
     <div class="sum" id="sum"></div>
+    <div id="weekBar"></div>
     <div class="gfrule">🌾 Gluten-free rule: GF items may only be swapped for products labelled gluten-free.</div>
     <div class="tabs" id="tabs"></div>
     <div id="listView"><div id="groups"></div></div>
@@ -96,6 +99,7 @@ textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px
     <div class="actions">
       <button class="btn p" onclick="copyList()">📋 Copy final list</button>
       <button class="btn" onclick="resetWeek()">↺ Reset week</button>
+      <div id="ownerBox" style="width:100%"></div>
     </div>
     <div id="removedWrap"></div>
   </div>
@@ -192,10 +196,14 @@ function applyLocal(st,b){const f=id=>st.items.find(x=>x.id===id), g=id=>st.adde
   if(b.action==="restoreAdded"&&!g(b.item.id))st.added.push({keep:true,...b.item});
   if(b.action==="removeMeal"){st.meals=st.meals.filter(m=>m.id!==b.id);st.added=st.added.filter(a=>a.meal!==b.id);}
   if(b.action==="restoreMeal"&&!st.meals.find(m=>m.id===b.meal.id)){st.meals.push(b.meal);st.added.push(...(b.ingredients||[]));}
-  if(b.action==="reset"){st.added=[];st.meals=[];st.items.forEach(i=>i.keep=true);}
+  if(b.action==="reset"){st.added=[];st.meals=[];st.items.forEach(i=>i.keep=true);st.week={status:"Open",at:""};}
+  if(b.action==="submitWeek")st.week={status:"Submitted",at:new Date().toISOString()};
+  if(b.action==="reopenWeek")st.week={...(st.week||{}),status:"Reopened"};
   return st;}
 async function api(b){
-  if (DEMO){ applyLocal(demo,b); return JSON.parse(JSON.stringify(demo)); }
+  if (DEMO){ demo.role=new URLSearchParams(location.search).has("owner")?"owner":"family"; if(!demo.week)demo.week={status:"Open",at:""};
+    if(isLocked(demo)&&demo.role!=="owner"&&b.action!=="get")return {...JSON.parse(JSON.stringify(demo)),ok:false,error:"locked"};
+    applyLocal(demo,b); return JSON.parse(JSON.stringify(demo)); }
   const r = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...b,pin:pin(),by:b.by??me()})});
   return r.json();
 }
@@ -209,13 +217,17 @@ function enqueue(b){
   dirty++; clearTimeout(qTimer); qTimer=setTimeout(flushQ,350);}
 async function flushQ(){if(qBusy)return;qBusy=true;let failed=false,last=null;
   while(Q.length){const b=Q.shift();
-    try{const d=await api(b);if(!d.ok){failed=true;if(d.error==="bad_pin"){Q.length=0;show("pin");}}else last=d;}catch(e){failed=true;}}
+    try{const d=await api(b);if(!d.ok){failed=true;if(d.error==="bad_pin"){Q.length=0;show("pin");}if(d.error==="locked"){Q.length=0;lockedMsg=1;}}else last=d;}catch(e){failed=true;}}
   qBusy=false;
-  if(failed){toast("Couldn't save a change. Refreshing…");refresh(true);}
+  if(failed){toast(lockedMsg?"🔒 List is locked – sent for pricing":"Couldn't save a change. Refreshing…");lockedMsg=0;refresh(true);}
   else if(last&&!Q.length){dirty=0;S=last;saveCache();if(!openSheet())render();}}
 const openSheet=()=>!!document.querySelector(".sheet.show");
 // Instant: change locally, render, save in background
+let lockedMsg=0;
+const isLocked=st=>["Submitted","Priced","Ordered"].includes((st&&st.week&&st.week.status)||"");
+const isOwner=()=>S.role==="owner";
 function act(b,msg){
+  if(b.action!=="get"&&isLocked(S)&&!isOwner()){toast("🔒 List is locked – sent for pricing");return;}
   if(b.action==="add"){b={action:"restoreAdded",item:{id:uid(),name:b.name,qty:b.qty||"1",category:b.category||"Other",gf:!!b.gf,by:b.by??me(),barcode:b.barcode||"",brand:b.brand||"",image:b.image||"",gfCheck:b.gfCheck||"",meal:"",keep:true}};}
   if(b.action==="addMeal"){b={action:"restoreMeal",meal:{id:uid(),name:b.name,servings:b.servings||"",by:b.by??me(),note:b.note||"",status:"Requested"},ingredients:[]};}
   applyLocal(S,b);saveCache();render();if(msg)toast(msg);enqueue(b);}
@@ -234,7 +246,16 @@ async function load(){
 }
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!DEMO&&pin())refresh();});
 
-function render(){
+function weekUI(){const w=S.week||{},L=isLocked(S);
+  const dt=w.at?new Date(w.at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"}):"";
+  const lbl={Submitted:"Sent to Shopping",Priced:"Priced by Shopping",Ordered:"Ordered"}[w.status]||"";
+  document.getElementById("weekBar").innerHTML=L?'<div class="lockbar">🔒 '+lbl+(dt?' on '+esc(dt):'')+' – list locked'+(w.status==="Submitted"?'<br><span style="font-weight:400">Shopping is finding the cheapest shops (GF items stay labelled gluten-free).</span>':'')+'</div>':'';
+  document.getElementById("ownerBox").innerHTML=!isOwner()?'':(L?'<button class="btn owner" onclick="reopenWeek()">🔓 Reopen list</button>':'<button class="btn owner" onclick="sendWeek()">📤 Send for pricing</button>');
+  document.querySelectorAll(".fab").forEach(f=>f.style.opacity=L&&!isOwner()?".45":"");}
+function sendWeek(){const kept=live().filter(i=>i.keep).length,ex=S.added.filter(a=>!a.meal&&a.keep!==false).length,ms=(S.meals||[]).length,ing=S.added.filter(a=>a.meal&&a.keep!==false).length;
+  if(confirm("Send this week's list to Shopping for pricing?\n\n• "+kept+" regular items\n• "+ex+" added items\n• "+ms+" meals ("+ing+" ingredients)\n\nThe list will be locked for the family until you reopen it."))act({action:"submitWeek"},"Sent for pricing ✓");}
+function reopenWeek(){if(confirm("Reopen the list so the family can edit again?"))act({action:"reopenWeek"},"List reopened");}
+function render(){weekUI();
   document.getElementById("hello").textContent = me() ? "Hi "+me()+" 👋 here's this week's list" : "This week's list";
   const meals=S.meals||[], extra=S.added.filter(a=>!a.meal);
   const kept=live().filter(i=>i.keep).length, lost=live().length-kept;
