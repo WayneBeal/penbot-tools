@@ -67,6 +67,7 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .req{background:#FFF0D6;color:#9A6207}.done{background:#E2F4E9;color:#23794A}
 .mnote{padding:10px 14px;color:var(--soft);font-size:13px}
 textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#FFFCF9;color:var(--ink);font-family:inherit;min-height:70px}
+.badge.dup{background:#FFE4D6;color:#B4471A}
 </style>
 </head>
 <body>
@@ -267,7 +268,22 @@ function sendWeek(){const kept=live().filter(i=>i.keep).length,ex=S.added.filter
   if(confirm("Send this week's list to Shopping for pricing?\n\n• "+kept+" regular items\n• "+ex+" added items\n• "+ms+" meals ("+ing+" ingredients)\n\nThe list will be locked for the family until you reopen it."))act({action:"submitWeek"},"Sent for pricing ✓");}
 function restoreReset(){if(!isOwner())return;if(confirm("Restore the list as it was before the last Reset week?\n\nKeep/Lose choices, added items, meals and the week status come back. Anything added since the reset is kept."))act({action:"restoreLastReset"},"Restoring list from before reset…");}
 function reopenWeek(){if(confirm("Reopen the list so the family can edit again?"))act({action:"reopenWeek"},"List reopened");}
-function render(){weekUI();
+// ---- Duplicate protection (client-side only)
+const DUP_STOP=new Set("gluten free glutenfree gf freefrom from the a of and with in pack packs x tesco asda sainsburys morrisons iceland aldi lidl coop waitrose ocado ms schar genius warburtons heinz kelloggs nestle mcvities essential everyday value finest extra special organic fresh large small medium".split(" "));
+function dupKey(n){let t=String(n||"").toLowerCase().replace(/&/g," and ").replace(/['’]/g,"")
+  .replace(/\b\d+(\.\d+)?\s*(x|×|kg|g|gr|grams?|ml|l|ltr|litres?|cl|pk|pack|packs|pcs|pieces?|oz|lb)?\b/g," ").replace(/×/g," ").replace(/[^a-z ]+/g," ");
+  return [...new Set(t.split(/\s+/).filter(w=>w&&!DUP_STOP.has(w)).map(w=>w.length>4&&w.endsWith("ies")?w.slice(0,-3)+"y":w.length>4&&/(ches|shes|oes)$/.test(w)?w.slice(0,-2):w.length>3&&w.endsWith("s")&&!w.endsWith("ss")?w.slice(0,-1):w))].sort();}
+function dupSim(a,b){if(!a.length||!b.length)return false;const B=new Set(b),i=a.filter(w=>B.has(w)).length;return i/(new Set([...a,...b]).size)>=0.75;}
+function activeRows(){const o=[];(S.items||[]).forEach(i=>{if(i.active&&i.keep)o.push({id:i.id,name:i.name,barcode:""});});
+  (S.added||[]).forEach(a=>{if(!a.meal||a.keep!==false)o.push({id:a.id,name:a.name,barcode:a.barcode||""});});return o;}
+function findDup(name,barcode){const k=dupKey(name),bc=String(barcode||"").replace(/\D/g,"");
+  return activeRows().find(r=>(bc&&r.barcode===bc)||dupSim(k,dupKey(r.name)));}
+let DUPS=new Set();
+function computeDups(){const r=activeRows().map(x=>({...x,k:dupKey(x.name)}));DUPS=new Set();
+  for(let i=0;i<r.length;i++)for(let j=i+1;j<r.length;j++)if((r[i].barcode&&r[i].barcode===r[j].barcode)||dupSim(r[i].k,r[j].k)){DUPS.add(r[i].id);DUPS.add(r[j].id);}}
+const dupTag=id=>DUPS.has(id)?'<span class="badge dup">possible duplicate</span>':'';
+function okDup(name,barcode){const d=findDup(name,barcode);return !d||confirm('"'+name+'" looks like it\'s already on the list (as "'+d.name+'").\n\nPress OK to add anyway, or Cancel.');}
+function render(){computeDups();weekUI();
   document.getElementById("hello").textContent = me() ? "Hi "+me()+" 👋 here's this week's list" : "This week's list";
   const meals=S.meals||[], extra=S.added.filter(a=>!a.meal);
   const kept=live().filter(i=>i.keep).length, lost=live().length-kept;
@@ -280,17 +296,17 @@ function render(){weekUI();
     return '<div class="meal"><div class="mhead"><div class="nm">'+esc(m.name)+'<span class="pill '+(done?'done':'req')+'">'+(done?'Ingredients added':'Requested')+'</span>'+
       '<span class="who">'+(m.servings?'Serves '+esc(m.servings)+' · ':'')+(m.by?'added by '+esc(m.by):'')+'</span></div><button class="rm" aria-label="Remove meal" onclick="removeMeal(\''+m.id+'\')">✕</button></div>'+
       (m.note?'<div class="mnote">📝 '+esc(m.note)+'</div>':'')+
-      (ing.length?ing.map(a=>'<div class="row'+(a.keep?'':' lost')+'"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+(a.gf?'<span class="badge">GF</span>':'')+'</div>'+
+      (ing.length?ing.map(a=>'<div class="row'+(a.keep?'':' lost')+'"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+dupTag(a.id)+(a.gf?'<span class="badge">GF</span>':'')+'</div>'+
         '<div class="kl"><button class="k'+(a.keep?' on':'')+'" onclick="act({action:\'setKeep\',id:\''+a.id+'\',keep:true})">Keep</button><button class="l'+(a.keep?'':' on')+'" onclick="act({action:\'setKeep\',id:\''+a.id+'\',keep:false})">Lose</button></div></div>').join(""):
         '<div class="mnote">⏳ Ingredients coming soon, all gluten-free.</div>')+'</div>';}).join("");
   document.getElementById("groups").innerHTML = CATS.map(c=>{
     const its=live().filter(i=>i.category===c), ad=extra.filter(a=>a.category===c);
     if(!its.length&&!ad.length) return "";
     return '<h2>'+ICON[c]+' '+c+' <small>'+(its.filter(i=>i.keep).length+ad.length)+'</small></h2><div class="list">'+
-      its.map(i=>'<div class="row'+(i.keep?'':' lost')+'"><div class="nm">'+esc(i.name)+(i.gf?'<span class="badge">GF</span>':'')+'</div>'+
+      its.map(i=>'<div class="row'+(i.keep?'':' lost')+'"><div class="nm">'+esc(i.name)+dupTag(i.id)+(i.gf?'<span class="badge">GF</span>':'')+'</div>'+
         '<div class="kl"><button class="k'+(i.keep?' on':'')+'" onclick="act({action:\'setKeep\',id:\''+i.id+'\',keep:true})">Keep</button><button class="l'+(i.keep?'':' on')+'" onclick="act({action:\'setKeep\',id:\''+i.id+'\',keep:false})">Lose</button></div>'+
         '<button class="rm" aria-label="Remove" onclick="removeRegular(\''+i.id+'\')">✕</button></div>').join("")+
-      ad.map(a=>'<div class="row"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+'<span class="badge new">NEW</span>'+(a.gf?'<span class="badge">GF</span>':'')+(a.by?'<span class="who">added by '+esc(a.by)+'</span>':'')+(a.barcode?'<span class="who">📷 '+esc(a.barcode)+(a.gfCheck&&a.gfCheck!=="labelled gluten-free"?' · GF: '+esc(a.gfCheck):'')+'</span>':'')+'</div>'+
+      ad.map(a=>'<div class="row"><div class="nm">'+esc(a.qty)+' × '+esc(a.name)+dupTag(a.id)+'<span class="badge new">NEW</span>'+(a.gf?'<span class="badge">GF</span>':'')+(a.by?'<span class="who">added by '+esc(a.by)+'</span>':'')+(a.barcode?'<span class="who">📷 '+esc(a.barcode)+(a.gfCheck&&a.gfCheck!=="labelled gluten-free"?' · GF: '+esc(a.gfCheck):'')+'</span>':'')+'</div>'+
         '<button class="rm" aria-label="Remove" onclick="removeAdded(\''+a.id+'\')">✕</button></div>').join("")+'</div>';
   }).join("");
   const gone=S.items.filter(i=>i.active===false);
@@ -347,12 +363,13 @@ function showConf(code,p){const g=gfInfo(p),nm=p?((p.product_name_en||p.product_
   const w=document.getElementById("cWarn");w.textContent=g.msg;w.classList.toggle("okgf",!!g.ok);
   document.getElementById("confSheet").classList.add("show");if(!p)setTimeout(()=>document.getElementById("cName").focus(),50);}
 function closeConf(){document.getElementById("confSheet").classList.remove("show");}
-async function addScanned(){const name=document.getElementById("cName").value.trim();if(!name){toast("Type a name first");return;}const gf=document.getElementById("cGf").checked;
+async function addScanned(){const name=document.getElementById("cName").value.trim();if(!name){toast("Type a name first");return;}const gf=document.getElementById("cGf").checked;if(!okDup(name,scanned.code))return;
   await act({action:"add",name,qty:document.getElementById("cQty").value.trim()||"1",category:gf?"Gluten-free":"Other",gf,by:document.getElementById("cBy").value.trim(),
     barcode:scanned.code,brand:scanned.brand,image:scanned.image,gfCheck:gf&&scanned.check!=="labelled gluten-free"?"ticked by family - check":scanned.check},"Added ✓");closeConf();}
 function closeAdd(){document.getElementById("addSheet").classList.remove("show");}
 async function addItem(){
   const name=document.getElementById("aName").value.trim();if(!name){toast("Type an item first");return;}
+  if(!okDup(name))return;
   const gf=document.getElementById("aGf").checked;let cat=document.getElementById("aCat").value||(gf?"Gluten-free":"Other");
   await act({action:"add",name,qty:document.getElementById("aQty").value.trim()||"1",category:cat,gf,by:document.getElementById("aBy").value.trim()},"Added ✓");
   document.getElementById("aName").value="";document.getElementById("aQty").value="1";document.getElementById("aGf").checked=false;document.getElementById("aCat").value="";closeAdd();
